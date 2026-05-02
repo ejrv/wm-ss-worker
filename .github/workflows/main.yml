@@ -1,0 +1,52 @@
+name: web-ss
+
+on:
+  workflow_dispatch:
+    inputs:
+      website_url:
+        description: 'url?'
+        required: true
+
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          npm init -y
+          npm install puppeteer
+
+      - name: Take Screenshot
+        run: |
+          
+          cat > screenshot.js << 'EOF'
+          const puppeteer = require('puppeteer');
+          const url = process.argv[2];
+          const output = 'screenshot.png';
+
+          (async () => {
+            const browser = await puppeteer.launch({
+              args: ['--no-sandbox', '--disable-setuid-sandbox']
+            });
+            const page = await browser.newPage();
+            await page.setViewport({ width: 1280, height: 800 });
+            await page.goto(url, { waitUntil: 'networkidle2' });
+            await page.screenshot({ path: output, fullPage: true });
+            await browser.close();
+            console.log(`Screenshot saved to ${output}`);
+          })();
+          EOF
+
+          
+          node screenshot.js ${{ inputs.website_url }}
+
+      - name: Commit and Push Screenshot
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add screenshot.png
+          git commit -m "Added screenshot of ${{ inputs.website_url }}" || true
+          git push
